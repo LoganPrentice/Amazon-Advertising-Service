@@ -1,17 +1,22 @@
 package com.amazon.ata.advertising.service.businesslogic;
 
 import com.amazon.ata.advertising.service.dao.ReadableDao;
+import com.amazon.ata.advertising.service.dao.TargetingGroupDao;
 import com.amazon.ata.advertising.service.model.AdvertisementContent;
 import com.amazon.ata.advertising.service.model.EmptyGeneratedAdvertisement;
 import com.amazon.ata.advertising.service.model.GeneratedAdvertisement;
+import com.amazon.ata.advertising.service.model.RequestContext;
+import com.amazon.ata.advertising.service.targeting.TargetingEvaluator;
 import com.amazon.ata.advertising.service.targeting.TargetingGroup;
 
+import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicateResult;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 /**
@@ -63,11 +68,23 @@ public class AdvertisementSelectionLogic {
             final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
 
             if (CollectionUtils.isNotEmpty(contents)) {
-                AdvertisementContent randomAdvertisementContent = contents.get(random.nextInt(contents.size()));
+                RequestContext context = new RequestContext(customerId, marketplaceId);
+                TargetingEvaluator evaluator = new TargetingEvaluator(context);
+                final Optional<TargetingGroup> group = contents.stream()
+                        .map(AdvertisementContent::getContentId)
+                        .map(targetingGroupDao::get)
+                        .flatMap(Collection::stream)
+                        .sorted(Comparator.comparing(TargetingGroup::getClickThroughRate).reversed())
+                        .filter(te -> evaluator.evaluate(te) == TargetingPredicateResult.TRUE)
+                        .findFirst();
+                AdvertisementContent randomAdvertisementContent = contents.stream()
+                        .filter(content -> content.getContentId().equals(group.get().getContentId()))
+                        .findFirst().get();
                 generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
             }
 
         }
+        
 
         return generatedAdvertisement;
     }
