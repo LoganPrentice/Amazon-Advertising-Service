@@ -53,13 +53,6 @@ public class AddTargetingGroupActivity {
             requestedTargetingPredicates,
             contentId));
 
-//        if (requestedTargetingPredicates != null) {
-//            for (com.amazon.ata.advertising.service.model.TargetingPredicate targetingPredicate :
-//                requestedTargetingPredicates) {
-//                TargetingPredicate predicate = TargetingPredicateTranslator.fromCoral(targetingPredicate);
-//                targetingPredicates.add(predicate);
-//            }
-//        }
 
         TargetingGroup targetingGroup = targetingGroupDao.create(contentId, requestedTargetingPredicates.stream()
                 .map(TargetingPredicateTranslator::fromCoral)
