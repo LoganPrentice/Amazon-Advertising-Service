@@ -70,16 +70,26 @@ public class AdvertisementSelectionLogic {
             if (CollectionUtils.isNotEmpty(contents)) {
                 RequestContext context = new RequestContext(customerId, marketplaceId);
                 TargetingEvaluator evaluator = new TargetingEvaluator(context);
-                final Optional<TargetingGroup> group = contents.stream()
+                final List<TargetingGroup> group = contents.stream()
                         .map(AdvertisementContent::getContentId)
                         .map(targetingGroupDao::get)
                         .flatMap(Collection::stream)
                         .sorted(Comparator.comparing(TargetingGroup::getClickThroughRate).reversed())
                         .filter(te -> evaluator.evaluate(te) == TargetingPredicateResult.TRUE)
-                        .findFirst();
+                        .collect(Collectors.toList());
+                final TreeMap<TargetingGroup, Double> sortByClickThroughRate = new TreeMap<>(Comparator.comparing(TargetingGroup::getClickThroughRate));
+
+                contents.stream()
+                        .map(AdvertisementContent::getContentId)
+                        .map(targetingGroupDao::get)
+                        .flatMap(Collection::stream)
+                        .filter(tg -> evaluator.evaluate(tg) == TargetingPredicateResult.TRUE)
+                        .forEach(targetingGroup -> sortByClickThroughRate.put(targetingGroup, targetingGroup.getClickThroughRate()));
+
+
                 AdvertisementContent randomAdvertisementContent = contents.stream()
-                        .filter(content -> content.getContentId().equals(group.get().getContentId()))
-                        .findFirst().get();
+                        .filter(content -> content.getContentId().equals(sortByClickThroughRate.descendingMap().firstKey().getContentId())).findFirst().get();
+
                 generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
             }
 
